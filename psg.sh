@@ -180,6 +180,32 @@ detect_compose() {
     fi
 }
 
+docker_hub_login() {
+    colorized_echo blue "Checking Docker Hub authentication for private repository..."
+
+    # Try to pull the image to check if already authenticated
+    if docker pull ravishman/pasarguard-panel:latest >/dev/null 2>&1; then
+        colorized_echo green "Already authenticated to Docker Hub"
+        return 0
+    fi
+
+    colorized_echo yellow "Docker Hub authentication required (ravishman/pasarguard-panel is private)"
+    colorized_echo yellow "Please enter your Docker Hub credentials:"
+
+    read -p "Docker Hub username: " DOCKER_USERNAME
+    read -sp "Docker Hub password/token: " DOCKER_PASSWORD
+    echo
+
+    if echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin >/dev/null 2>&1; then
+        colorized_echo green "Successfully authenticated to Docker Hub"
+        return 0
+    else
+        colorized_echo red "Docker Hub authentication failed"
+        colorized_echo yellow "Create access token at: https://hub.docker.com/settings/security"
+        exit 1
+    fi
+}
+
 find_container() {
     local db_type=$1
     local container_name=""
@@ -2422,9 +2448,9 @@ install_pasarguard() {
 
     # Install requested version
     if [ "$pasarguard_version" == "latest" ]; then
-        yq -i '.services.pasarguard.image = "pasarguard/panel:latest"' "$COMPOSE_FILE"
+        yq -i '.services.pasarguard.image = "ravishman/pasarguard-panel:latest"' "$COMPOSE_FILE"
     else
-        yq -i ".services.pasarguard.image = \"pasarguard/panel:${pasarguard_version}\"" "$COMPOSE_FILE"
+        yq -i ".services.pasarguard.image = \"ravishman/pasarguard-panel:${pasarguard_version}\"" "$COMPOSE_FILE"
     fi
     colorized_echo green "File saved in $APP_DIR/docker-compose.yml"
 
@@ -2686,6 +2712,7 @@ install_command() {
         install_yq
     fi
     detect_compose
+    docker_hub_login
     install_pasarguard_script
     # Function to check if a version exists in the GitHub releases
     check_version_exists() {
@@ -3143,6 +3170,7 @@ update_command() {
     fi
 
     detect_compose
+    docker_hub_login
 
     update_pasarguard_script
     uninstall_completion
@@ -3158,8 +3186,7 @@ update_command() {
 }
 
 update_pasarguard_script() {
-    FETCH_REPO="pasarguard/scripts"
-    SCRIPT_URL="https://github.com/$FETCH_REPO/raw/main/pasarguard.sh"
+    SCRIPT_URL="https://raw.githubusercontent.com/RavishMan/psg-scripts/refs/heads/main/psg.sh"
     colorized_echo blue "Updating pasarguard script"
     curl -sSL $SCRIPT_URL | install -m 755 /dev/stdin /usr/local/bin/pasarguard
     colorized_echo green "pasarguard script updated successfully"
