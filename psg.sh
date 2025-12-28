@@ -2447,10 +2447,14 @@ install_pasarguard() {
     fi
 
     # Install requested version
-    if [ "$pasarguard_version" == "latest" ]; then
-        yq -i '.services.pasarguard.image = "ravishman/pasarguard-panel:latest"' "$COMPOSE_FILE"
+    # Custom repository uses 'main' tag for all versions
+    if [ "$pasarguard_version" == "latest" ] || [ "$pasarguard_version" == "dev" ] || [ "$pasarguard_version" == "pre-release" ]; then
+        colorized_echo blue "Using 'main' tag from custom Docker repository"
+        yq -i '.services.pasarguard.image = "ravishman/pasarguard-panel:main"' "$COMPOSE_FILE"
     else
-        yq -i ".services.pasarguard.image = \"ravishman/pasarguard-panel:${pasarguard_version}\"" "$COMPOSE_FILE"
+        colorized_echo yellow "Custom repository uses 'main' tag (version tags not available)"
+        colorized_echo blue "Installing from main branch (latest build)"
+        yq -i '.services.pasarguard.image = "ravishman/pasarguard-panel:main"' "$COMPOSE_FILE"
     fi
     colorized_echo green "File saved in $APP_DIR/docker-compose.yml"
 
